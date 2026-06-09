@@ -1,0 +1,17 @@
+logger:
+  host: 192.168.1.5
+  port: 8899
+  serial: 3590091076  # SN дата-логгера (не инвертора!)
+  modbus_slave_id: 1
+  reconnect_delay: 15
+
+influx:
+  url: http://localhost:8086
+  token: deye-token-local
+  org: deye
+  bucket: deye
+
+mqtt:
+  host: localhost
+  port: 1883
+  topic: deye/metrics

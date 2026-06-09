@@ -1,0 +1,6 @@
+deye-logger
+deye-logger.exe
+*.exe
+data/*.csv
+config/deye.yml
+!config/deye.example.yml
