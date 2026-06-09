@@ -1,6 +1,6 @@
 # Binaries
-deye-logger
-deye-logger.exe
+/deye-logger
+/deye-logger.exe
 *.exe
 !start.bat
 !start-debug.bat

@@ -10,14 +10,16 @@ import (
 
 const DefaultConfigPath = "config/deye.yml"
 
+// LoggerConfig holds connection settings for the Deye WiFi logger.
 type LoggerConfig struct {
 	Host           string `yaml:"host"`
 	Port           int    `yaml:"port"`
-	Serial         int    `yaml:"serial"`
+	Serial         int    `yaml:"serial"`   // SN дата-логгера (не инвертора!)
 	ModbusSlaveID  int    `yaml:"modbus_slave_id"`
 	ReconnectDelay int    `yaml:"reconnect_delay"`
 }
 
+// InfluxConfig holds InfluxDB v2 write settings.
 type InfluxConfig struct {
 	URL    string `yaml:"url"`
 	Token  string `yaml:"token"`
@@ -25,12 +27,14 @@ type InfluxConfig struct {
 	Bucket string `yaml:"bucket"`
 }
 
+// MqttConfig holds MQTT publish settings.
 type MqttConfig struct {
 	Host  string `yaml:"host"`
 	Port  int    `yaml:"port"`
 	Topic string `yaml:"topic"`
 }
 
+// AppConfig is the complete application configuration.
 type AppConfig struct {
 	Logger LoggerConfig `yaml:"logger"`
 	Influx InfluxConfig `yaml:"influx"`
@@ -40,26 +44,43 @@ type AppConfig struct {
 func defaults() AppConfig {
 	return AppConfig{
 		Logger: LoggerConfig{
-			Host:           "192.168.1.5",
 			Port:           8899,
-			Serial:         3590091076,
 			ModbusSlaveID:  1,
 			ReconnectDelay: 15,
 		},
 		Influx: InfluxConfig{
 			URL:    "http://localhost:8086",
-			Token:  "deye-token-local",
 			Org:    "deye",
 			Bucket: "deye",
 		},
 		Mqtt: MqttConfig{
-			Host:  "localhost",
 			Port:  1883,
 			Topic: "deye/metrics",
 		},
 	}
 }
 
+// Validate checks that required fields are set and returns all errors at once.
+func (c *AppConfig) Validate() error {
+	var errs []string
+
+	if c.Logger.Host == "" {
+		errs = append(errs, "logger.host is required")
+	}
+	if c.Logger.Port == 0 {
+		errs = append(errs, "logger.port is required")
+	}
+	if c.Logger.Serial == 0 {
+		errs = append(errs, "logger.serial is required")
+	}
+
+	if len(errs) > 0 {
+		return fmt.Errorf("config validation failed:\n  - %s", join(errs, "\n  - "))
+	}
+	return nil
+}
+
+// Load reads configuration from a YAML file and applies environment variable overrides.
 func Load(path string) (*AppConfig, error) {
 	cfg := defaults()
 
@@ -90,6 +111,10 @@ func Load(path string) (*AppConfig, error) {
 	applyEnvInt(&cfg.Mqtt.Port, "DEYE_MQTT_PORT")
 	applyEnvStr(&cfg.Mqtt.Topic, "DEYE_MQTT_TOPIC")
 
+	if err := cfg.Validate(); err != nil {
+		return nil, err
+	}
+
 	return &cfg, nil
 }
 
@@ -105,4 +130,15 @@ func applyEnvInt(target *int, key string) {
 			*target = n
 		}
 	}
+}
+
+func join(strs []string, sep string) string {
+	out := ""
+	for i, s := range strs {
+		if i > 0 {
+			out += sep
+		}
+		out += s
+	}
+	return out
 }

@@ -1,0 +1,42 @@
+name: Go CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+jobs:
+  lint-and-build:
+    name: Lint & Build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go: ["1.24"]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go ${{ matrix.go }}
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go }}
+
+      - name: Go vet
+        run: go vet ./...
+
+      - name: Go fmt
+        run: |
+          fmt=$(gofmt -l .)
+          if [ -n "$fmt" ]; then
+            echo "Unformatted files:"
+            echo "$fmt"
+            exit 1
+          fi
+
+      - name: Build (Linux)
+        run: go build -ldflags="-s -w" -o /dev/null ./cmd/deye-logger/
+
+      - name: Build (Windows, cross-compile)
+        run: GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" -o /dev/null ./cmd/deye-logger/

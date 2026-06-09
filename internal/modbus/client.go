@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/drycool/deye-logger-go/internal/logger"
@@ -20,6 +21,7 @@ type Client struct {
 	port     int
 	slaveID  byte
 	timeout  time.Duration
+	txID     atomic.Uint64 // transaction ID counter
 	log      *slog.Logger
 }
 
@@ -69,10 +71,13 @@ func (c *Client) ReadHoldingRegisters(addr uint16, quantity uint16) ([]uint16, e
 		return nil, fmt.Errorf("not connected")
 	}
 
+	// Atomically increment transaction ID (Modbus TCP allows wrapping)
+	txID := uint16(c.txID.Add(1))
+
 	// Build Modbus TCP frame
 	// Transaction ID (2) + Protocol ID (2) + Length (2) + Unit ID (1) + FC (1) + Start (2) + Qty (2)
 	frame := make([]byte, 12)
-	binary.BigEndian.PutUint16(frame[0:2], 1)           // transaction ID
+	binary.BigEndian.PutUint16(frame[0:2], txID)        // transaction ID
 	binary.BigEndian.PutUint16(frame[2:4], 0)           // protocol ID
 	binary.BigEndian.PutUint16(frame[4:6], 6)           // length
 	frame[6] = c.slaveID                                // unit ID
@@ -91,16 +96,33 @@ func (c *Client) ReadHoldingRegisters(addr uint16, quantity uint16) ([]uint16, e
 		return nil, fmt.Errorf("read header: %w", err)
 	}
 
+	// Verify transaction ID matches
+	respTxID := binary.BigEndian.Uint16(header[0:2])
+	if respTxID != txID {
+		return nil, fmt.Errorf("transaction ID mismatch: sent=%d, received=%d", txID, respTxID)
+	}
+
 	fc := header[7]
 	if fc&0x80 != 0 {
 		excCode := header[8]
 		return nil, fmt.Errorf("modbus exception FC=0x%02X code=%d", fc, excCode)
 	}
 
+	// Verify protocol ID is 0
+	protoID := binary.BigEndian.Uint16(header[2:4])
+	if protoID != 0 {
+		return nil, fmt.Errorf("unexpected protocol ID: %d", protoID)
+	}
+
 	byteCount := int(header[8])
 	data := make([]byte, byteCount)
 	if _, err := c.conn.Read(data); err != nil {
 		return nil, fmt.Errorf("read data: %w", err)
+	}
+
+	// Verify byte count matches expected
+	if byteCount != int(quantity)*2 {
+		return nil, fmt.Errorf("byte count mismatch: expected %d, got %d", quantity*2, byteCount)
 	}
 
 	regs := make([]uint16, quantity)

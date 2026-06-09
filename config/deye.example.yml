@@ -1,16 +1,26 @@
-logger:
-  host: 192.168.1.5
-  port: 8899
-  serial: 3590091076  # SN дата-логгера (не инвертора!)
-  modbus_slave_id: 1
-  reconnect_delay: 15
+# =========================================
+# Deye Logger Go — Example Configuration
+# =========================================
+# Copy this file to config/deye.yml and fill in your values.
+# Environment variables override YAML settings.
+#
+# Required fields: logger.host, logger.port, logger.serial
 
+logger:
+  host: 192.168.1.5            # IP адрес WiFi-логгера Deye (обязательно!)
+  port: 8899                   # TCP порт логгера
+  serial: 3590091076           # SN дата-логгера (не инвертора!) (обязательно!)
+  modbus_slave_id: 1           # Modbus slave ID
+  reconnect_delay: 15          # Секунд между попытками подключения
+
+# InfluxDB v2 — необязательно, включается флагом --influx
 influx:
   url: http://localhost:8086
   token: deye-token-local
   org: deye
   bucket: deye
 
+# MQTT — необязательно, включается флагом --mqtt
 mqtt:
   host: localhost
   port: 1883
