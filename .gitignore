@@ -1,6 +1,29 @@
+# Binaries
 deye-logger
 deye-logger.exe
 *.exe
+!start.bat
+!start-debug.bat
+
+# Data
 data/*.csv
+data/
+
+# Config with secrets
 config/deye.yml
 !config/deye.example.yml
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Go
+*.test
+*.out
+vendor/
